@@ -1,12 +1,21 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import BaseLayout from 'components/BaseLayout';
 import { useRouter } from 'next/router';
+import { useSession } from 'next-auth/client';
 
 export default function OfferNew() {
   const offerForm = useRef();
   const [error, setError] = useState();
   const [formProcessing, setFormProcessing] = useState(false);
   const router = useRouter();
+  const [session, loading] = useSession();
+
+  useEffect(() => {
+    if (!session && !loading) {
+      router.push('/user/signin');
+    }
+  }, [session, loading]);
+
   const handlerSubmit = async (e) => {
     e.preventDefault();
     if (formProcessing) return;
@@ -19,8 +28,7 @@ export default function OfferNew() {
       mobile: form.get('phone'),
       price: form.get('price'),
       description: form.get('description'),
-      location: form.get('location'),
-      status: 'inactive'
+      location: form.get('location')
     };
 
     const response = await fetch('/api/offers', {
@@ -39,6 +47,14 @@ export default function OfferNew() {
       setError(payload.error?.details[0]?.message);
     }
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!loading && !session) {
+    return <div>Redirecting...</div>;
+  }
   return (
     <BaseLayout>
       <section className="text-gray-600 body-font relative">
@@ -63,7 +79,7 @@ export default function OfferNew() {
                     id="category"
                     className="h-10 w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out">
                     <option value="rent">For rent</option>
-                    <option value="sale">For sale</option>
+                    <option value="sell">For sale</option>
                   </select>
                 </div>
               </div>
