@@ -7,11 +7,11 @@ import { jsonFetcher } from 'utils';
 import { useRouter } from 'next/router';
 
 export const getStaticProps = async () => {
-  const offers = await paginateOffers();
+  const offers = await paginateOffers(null, 'rent');
 
   return {
     props: {
-      offset: offers.offset,
+      offset: offers.offset ?? null,
       offers: offers.records.map((offer) => offer.fields)
     }
   };
@@ -28,37 +28,19 @@ export default function Home({ offers, offset }) {
     setOffers([...currentOffers, ...response.offers]);
   };
 
-  const handleFilters = async () => {
-    let filters = '';
-    if (query.category) {
-      filters += `?category=${query.category}`;
-    }
-    const response = await jsonFetcher(`/api/offers/paginate${filters}`);
-    setOffset(response.offset);
-    setOffers([...response.offers]);
-  };
-
-  useEffect(() => {
-    handleFilters();
-  }, [query]);
-
   return (
     <BaseLayout>
       <section className="text-gray-600 body-font">
         <div className="container px-5 py-24 mx-auto">
           <div className="flex justify-around w-full mb-4">
             <Link href="/offers">
-              <button className={query.category ? 'btn-secondary' : 'btn-primary'}>All</button>
+              <button className="btn-secondary">All</button>
             </Link>
-            <Link href="?category=sell">
-              <button className={query.category === 'sell' ? 'btn-primary' : 'btn-secondary'}>
-                For sale
-              </button>
+            <Link href="/offers/sale">
+              <button className="btn-secondary">For sale</button>
             </Link>
-            <Link href="?category=rent">
-              <button className={query.category === 'rent' ? 'btn-primary' : 'btn-secondary'}>
-                For rent
-              </button>
+            <Link href="/offers/rent">
+              <button className="btn-primary">For rent</button>
             </Link>
           </div>
           <div className="flex flex-wrap -m-4">

@@ -1,22 +1,34 @@
-import { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import BaseLayout from 'components/BaseLayout';
 import { useRouter } from 'next/router';
-import { useSession } from 'next-auth/client';
+import { getSession } from 'next-auth/client';
+import isAuthorized from 'services/offers/isAuthorized';
+import getOfferById from 'services/offers/get';
 
-export default function OfferNew() {
+export const getServerSideProps = async ({ req, query }) => {
+  const session = await getSession({ req });
+  const offer = await getOfferById(query.id);
+
+  if (!isAuthorized(offer, session) || !offer) {
+    return {
+      notFound: true
+    };
+  }
+
+  return {
+    props: {
+      offer
+    }
+  };
+};
+
+export default function OfferEdit({ offer }) {
   const offerForm = useRef();
   const [error, setError] = useState();
   const [formProcessing, setFormProcessing] = useState(false);
   const router = useRouter();
-  const [session, loading] = useSession();
 
-  useEffect(() => {
-    if (!session && !loading) {
-      router.push('/user/signin');
-    }
-  }, [session, loading]);
-
-  const handlerSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (formProcessing) return;
     setError(null);
@@ -30,9 +42,8 @@ export default function OfferNew() {
       description: form.get('description'),
       location: form.get('location')
     };
-
-    const response = await fetch('/api/offers', {
-      method: 'POST',
+    const response = await fetch(`/api/offers/${offer.id}`, {
+      method: 'PUT',
       body: JSON.stringify(payload),
       headers: {
         'Content-Type': 'application/json'
@@ -40,35 +51,27 @@ export default function OfferNew() {
     });
 
     if (response.ok) {
-      router.push('/offers/thanks');
+      router.push(`/offers/${offer.id}`);
     } else {
       const payload = await response.json();
       setFormProcessing(false);
       setError(payload.error?.details[0]?.message);
     }
   };
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!loading && !session) {
-    return <div>Redirecting...</div>;
-  }
   return (
     <BaseLayout>
       <section className="text-gray-600 body-font relative">
         <div className="container px-5 py-24 mx-auto">
           <div className="flex flex-col text-center w-full mb-12">
             <h1 className="sm:text-3xl text-2xl font-medium title-font mb-4 text-gray-900">
-              Submit new offer
+              Edit offer
             </h1>
             <p className="lg:w-2/3 mx-auto leading-relaxed text-base">
               Whatever cardigan tote bag tumblr hexagon brooklyn asymmetrical gentrify.
             </p>
           </div>
           <div className="lg:w-1/2 md:w-2/3 mx-auto">
-            <form className="flex flex-wrap -m-2" ref={offerForm} onSubmit={handlerSubmit}>
+            <form className="flex flex-wrap -m-2" ref={offerForm} onSubmit={handleSubmit}>
               <div className="p-2 w-full">
                 <div className="relative">
                   <label htmlFor="category" className="leading-7 text-sm text-gray-600">
@@ -92,6 +95,7 @@ export default function OfferNew() {
                     type="text"
                     id="title"
                     name="title"
+                    defaultValue={offer.title}
                     required
                     className="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out"
                   />
@@ -106,6 +110,7 @@ export default function OfferNew() {
                     type="text"
                     id="location"
                     name="location"
+                    defaultValue={offer.location}
                     required
                     className="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out"
                   />
@@ -120,6 +125,7 @@ export default function OfferNew() {
                     type="text"
                     id="price"
                     name="price"
+                    defaultValue={offer.price}
                     required
                     className="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out"
                   />
@@ -134,6 +140,7 @@ export default function OfferNew() {
                     type="text"
                     id="phone"
                     name="phone"
+                    defaultValue={offer.mobile}
                     required
                     className="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 text-base outline-none text-gray-700 py-1 px-3 leading-8 transition-colors duration-200 ease-in-out"
                   />
@@ -147,6 +154,7 @@ export default function OfferNew() {
                   <textarea
                     id="description"
                     name="description"
+                    defaultValue={offer.description}
                     required
                     className="w-full bg-gray-100 bg-opacity-50 rounded border border-gray-300 focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-200 h-32 text-base outline-none text-gray-700 py-1 px-3 resize-none leading-6 transition-colors duration-200 ease-in-out"></textarea>
                 </div>
@@ -155,12 +163,12 @@ export default function OfferNew() {
                 <button
                   disabled={formProcessing}
                   className="disabled:opacity-50 flex mx-auto text-white bg-indigo-500 border-0 py-2 px-8 focus:outline-none hover:bg-indigo-600 rounded text-lg">
-                  {formProcessing ? 'Submitting...' : 'Submit offer'}
+                  {formProcessing ? 'Please wait...' : 'Edit offer'}
                 </button>
                 {error && (
                   <div className="flex justify-center w-full my-5">
-                    <span className="bg-red-600 w-full rounded text-white">
-                      Offer not added: {error}
+                    <span className="bg-red-600 w-full rounded text-white px-3 py-3 text-center">
+                      Offer not edited: {error}
                     </span>
                   </div>
                 )}
